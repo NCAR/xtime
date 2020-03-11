@@ -114,6 +114,26 @@ def test_remapper_average(start, end, in_freq, out_freq, nlats, nlons, group):
     np.testing.assert_almost_equal(expected, results, verbose=True)
 
 
+
+@pytest.mark.parametrize(
+    'start, end, in_freq, out_freq, nlats, nlons, group',
+    [
+        ('2018-01-01', '2021-01-01', 'MS', 'A', 2, 2, 'time.year'),
+        ('2018-01-01', '2018-02-01', 'D', 'M', 2, 2, 'time.month'),
+        ('2018-01-01', '2019-01-01', 'D', 'M', 2, 2, 'time.month'),
+        ('2018-01-01', '2018-01-08', '24H', 'D', 2, 2, 'time.day'),
+    ],
+)
+def test_remapper_average_dask(start, end, in_freq, out_freq, nlats, nlons, group):
+    ds = create_dataset(
+        start=start, end=end, freq=in_freq, nlats=nlats, nlons=nlons, var_const=False
+    ).chunk()
+    remapper = Remapper(ds, freq=out_freq)
+    results = remapper.average(ds.tmin).data
+    expected = xarray_weighted_resample(ds, group).tmin.data
+    np.testing.assert_almost_equal(expected, results, verbose=True)
+
+
 @pytest.mark.parametrize(
     'start, end, in_freq, out_freq, nlats, nlons, group',
     [

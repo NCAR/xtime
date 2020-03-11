@@ -10,6 +10,11 @@ from scipy.sparse import csr_matrix
 
 from .axis import Axis, _get_time_bounds_dims
 
+
+# Because we are using the time bounds, using time frequencies anchored at the end 
+# would yield incorrect results. Therefore, we should treat all time frequencies to be
+# anchored at the beginning all the time. 
+
 _FREQUENCIES = {
     'A': 'AS',
     'AS': 'AS',
@@ -285,6 +290,9 @@ class Remapper:
         output_data = np.dot(self.info.weights.data, input_data)
         output_data = self._prepare_output_data(da, output_data, time_axis, trailing_shape)
         return output_data
+
+    mean = average 
+
 
 
 def _generate_outgoing_time_bounds(incoming_time_bounds, freq, ti, tf, attrs):

@@ -12,7 +12,7 @@ rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(123456789)))
 
 def create_dataset(
     start='2018-01',
-    end='2020-12',
+    end='2021-01',
     freq='MS',
     calendar='standard',
     units='days since 1980-01-01',
