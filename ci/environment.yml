@@ -4,12 +4,13 @@ channels:
 dependencies:
   - cftime
   - codecov
+  - dask
   - pip
   - pytest
   - pytest-cov
   - pytest-icdiff
   - pytest-sugar
   - pytest-xdist
-  - xarray
   - scipy
   - sparse
+  - xarray
