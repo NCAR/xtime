@@ -10,10 +10,9 @@ from scipy.sparse import csr_matrix
 
 from .axis import Axis, _get_time_bounds_dims
 
-
-# Because we are using the time bounds, using time frequencies anchored at the end 
+# Because we are using the time bounds, using time frequencies anchored at the end
 # would yield incorrect results. Therefore, we should treat all time frequencies to be
-# anchored at the beginning all the time. 
+# anchored at the beginning all the time.
 
 _FREQUENCIES = {
     'A': 'AS',
@@ -231,68 +230,21 @@ class Remapper:
 
         return wgts, col_idx, row_idx
 
-    def _prepare_input_data(self, da):
-        n = self.info.weights.data.shape[1]
-        data = da.data.copy()
-        time_axis = _get_time_axis_dim_num(self._from_axis.attrs, da)
-        if data.ndim == 1:
-            data = data.reshape((-1, 1))
-
-        if data.shape[time_axis] != n:
-            message = f"""The length ({data.shape[time_axis]}) of input time dimension does not
-            match to that of the provided remapper ({n})"""
-            raise ValueError(message)
-
-        if time_axis != 0:
-            data = np.moveaxis(data, time_axis, 0)
-
-        trailing_shape = data.shape[1:]
-        data = data.reshape((n, -1))
-
-        return data, trailing_shape
-
-    def _prepare_output_data(self, input_data, output_data, time_axis, trailing_shape):
-
-        shape = (output_data.shape[0], *trailing_shape)
-        data = np.moveaxis(output_data.reshape(shape), 0, time_axis)
-
-        original_dims = input_data.dims
-        coords = OrderedDict()
-        dims = []
-        for dim in original_dims:
-            if dim != self._from_axis.attrs['time_coord_name']:
-                if dim in input_data.coords:
-                    coords[dim] = input_data.coords[dim]
-                    dims.append(dim)
-            else:
-
-                times = self._from_axis._bindings[self.info.attrs['binding']](
-                    self.info.outgoing_time_bounds,
-                    axis=self.info.attrs['time_bounds_dim_axis_num'],
-                )
-                times = xr.DataArray(times)
-                coords[dim] = xr.DataArray(
-                    times,
-                    coords={self.info.attrs['time_coord_name']: times},
-                    attrs=input_data.attrs,
-                )
-                dims.append(dim)
-
-        return xr.DataArray(data, dims=dims, coords=coords)
-
     def average(self, da):
         time_axis = _get_time_axis_dim_num(self._from_axis.attrs, da)
-        input_data, trailing_shape = self._prepare_input_data(da)
+        n = self.info.weights.data.shape[1]
+        input_data, trailing_shape = _prepare_input_data(da.data, time_axis, n)
         nan_mask = np.isnan(input_data)
         non_nan_mask = np.ones(input_data.shape, dtype=np.int8)
         non_nan_mask[nan_mask] = 0
         input_data[nan_mask] = 0
         output_data = np.dot(self.info.weights.data, input_data)
-        output_data = self._prepare_output_data(da, output_data, time_axis, trailing_shape)
+        output_data = _prepare_output_data(
+            da, output_data, time_axis, trailing_shape, self.info, self._from_axis
+        )
         return output_data
 
-    mean = average 
-
+    mean = average
 
 
 def _generate_outgoing_time_bounds(incoming_time_bounds, freq, ti, tf, attrs):
@@ -347,3 +299,48 @@ def _get_time_axis_dim_num(attrs, da):
     """
     time_coord_name = attrs['time_coord_name']
     return da.get_axis_num(time_coord_name)
+
+
+def _prepare_input_data(data, time_axis, n):
+    if data.ndim == 1:
+        data = data.reshape((-1, 1))
+
+    if data.shape[time_axis] != n:
+        message = f"""The length ({data.shape[time_axis]}) of input time dimension does not
+        match to that of the provided remapper ({n})"""
+        raise ValueError(message)
+
+    if time_axis != 0:
+        data = np.moveaxis(data, time_axis, 0)
+
+    trailing_shape = data.shape[1:]
+    data = data.reshape((n, -1))
+
+    return data, trailing_shape
+
+
+def _prepare_output_data(input_data, output_data, time_axis, trailing_shape, info, _from_axis):
+
+    shape = (output_data.shape[0], *trailing_shape)
+    data = np.moveaxis(output_data.reshape(shape), 0, time_axis)
+
+    original_dims = input_data.dims
+    coords = OrderedDict()
+    dims = []
+    for dim in original_dims:
+        if dim != _from_axis.attrs['time_coord_name']:
+            if dim in input_data.coords:
+                coords[dim] = input_data.coords[dim]
+                dims.append(dim)
+        else:
+
+            times = _from_axis._bindings[info.attrs['binding']](
+                info.outgoing_time_bounds, axis=info.attrs['time_bounds_dim_axis_num'],
+            )
+            times = xr.DataArray(times)
+            coords[dim] = xr.DataArray(
+                times, coords={info.attrs['time_coord_name']: times}, attrs=input_data.attrs,
+            )
+            dims.append(dim)
+
+    return xr.DataArray(data, dims=dims, coords=coords)

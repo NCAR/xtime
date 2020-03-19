@@ -114,7 +114,7 @@ def test_remapper_average(start, end, in_freq, out_freq, nlats, nlons, group):
     np.testing.assert_almost_equal(expected, results, verbose=True)
 
 
-
+@pytest.mark.xfail(reason='Dask arrays are not supported yet.')
 @pytest.mark.parametrize(
     'start, end, in_freq, out_freq, nlats, nlons, group',
     [
