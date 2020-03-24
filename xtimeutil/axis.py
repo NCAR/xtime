@@ -171,16 +171,20 @@ def _use_cftime(x, attrs):
 
 
 def _infer_time_data_tick_binding(sample_time_bound, sample_time_data_tick):
-    if sample_time_data_tick == sample_time_bound[1]:
+
+    if np.isclose(sample_time_data_tick, sample_time_bound[1]):
         return 'right'
 
-    elif sample_time_data_tick == sample_time_bound[0]:
+    elif np.isclose(sample_time_data_tick, sample_time_bound[0]):
         return 'left'
 
-    elif (
-        sample_time_bound[0] + (sample_time_bound[1] - sample_time_bound[0]) / 2.0
-    ) == sample_time_data_tick:
+    elif np.isclose(
+        sample_time_data_tick,
+        sample_time_bound[0] + (sample_time_bound[1] - sample_time_bound[0]) / 2.0,
+    ):
         return 'middle'
 
     else:
-        raise RuntimeError('Unable to infer time data tick binding from the input data set. ')
+        message = f"""Unable to infer time data tick binding from the input data set.
+                   Please specify the `binding` parameter. Accepted values: {list(Axis._bindings.keys())}"""
+        raise RuntimeError(message)

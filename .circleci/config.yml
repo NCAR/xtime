@@ -39,7 +39,7 @@ shared: &shared
     - run:
         name: Running Tests
         command: |
-          pytest -p no:sugar -n 4 --junitxml=test-reports/junit.xml --cov=./ --verbose
+          pytest -n 4 -p no:sugar --junitxml=test-reports/junit.xml --cov=./ --verbose
     - run:
         name: Uploading code coverage report
         command: |
