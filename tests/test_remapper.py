@@ -81,6 +81,18 @@ def test_invalid_out_freq():
         _validate_freq(freq='QM')
 
 
+@pytest.mark.parametrize('freq1, freq2', [('A', 'M'), ('D', '12H'), ('43200S', '6H')])
+def test_remapper_weights_roundtrip(freq1, freq2):
+    ds1 = create_dataset(start='2020-01-01', end='2021-01-01', freq=freq1)
+    ds2 = create_dataset(start='2020-01-01', end='2021-01-01', freq=freq2)
+
+    remapper1 = Remapper(ds1, freq=freq2)
+    remapper2 = Remapper(ds2, freq=freq1)
+
+    M = np.matmul(remapper2.weights, remapper1.weights).todense()
+    assert (M.shape[0] == M.shape[1]) and np.allclose(M, np.eye(M.shape[0]))
+
+
 @pytest.mark.xfail(reason='Will be supported at a later time')
 @pytest.mark.parametrize(
     'start, end, in_freq, out_freq, nlats, nlons, group',
