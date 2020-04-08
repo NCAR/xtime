@@ -210,6 +210,7 @@ class Remapper:
 
     def mean(self, data):
         indata = data.copy()
+        _sanitize_input_data(indata, self.incoming['time_coord_name'], self.weights)
         if isinstance(indata, xr.DataArray):
             if isinstance(indata.data, dask.array.Array):
                 incoming_time_chunks = dict(zip(indata.dims, indata.chunks))[
@@ -328,8 +329,10 @@ def _construct_outgoing_time_bounds(
 
             time_bounds = xr.cftime_range(start=ti, end=tf + offset, freq=freq, calendar=calendar,)
 
-    msg = f"""{tf} upper bound from the incoming time axis is not covered in the outgoing
-    time axis which has {time_bounds[-1]} as the upper bound."""
+    msg = (
+        f'{tf} upper bound from the incoming time axis is not covered in the outgoing '
+        f'time axis which has {time_bounds[-1]} as the upper bound.'
+    )
 
     assert time_bounds[-1] >= tf, msg
     outgoing_time_bounds = np.vstack((time_bounds[:-1], time_bounds[1:])).T
@@ -340,3 +343,11 @@ def _construct_outgoing_time_bounds(
     out = xr.DataArray(dims=time_bounds_dims, data=outgoing_time_bounds)
     out.attrs = attrs
     return out
+
+
+def _sanitize_input_data(data, time_coord_name, weights):
+    message = (
+        f'The length ({data[time_coord_name].size}) of incoming time dimension does not match '
+        f"with the provided remapper object's incoming time dimension ({weights[_INCOMING_KEY].size})"
+    )
+    assert data[time_coord_name].size == weights[_INCOMING_KEY].size, message

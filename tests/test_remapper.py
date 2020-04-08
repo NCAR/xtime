@@ -138,5 +138,5 @@ def test_remapper_input_time_axis_mismatch():
     ds = create_dataset(start='2018-01-01', end='2018-01-07', freq='D')
     remapper = Remapper(ds, freq='7D')
     ds2 = create_dataset(start='2018-01-01', end='2018-01-08', freq='D')
-    with pytest.raises(ValueError):
+    with pytest.raises(AssertionError):
         _ = remapper.mean(ds2.tmin)
