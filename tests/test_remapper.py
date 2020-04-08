@@ -2,11 +2,10 @@ import itertools
 
 import numpy as np
 import pytest
-import sparse
 import xarray as xr
 
 from xtimeutil import Remapper
-from xtimeutil.remapper import _validate_freq
+from xtimeutil.remapper import _INCOMING_KEY, _OUTGOING_KEY, _validate_freq
 from xtimeutil.testing import create_dataset
 
 freqs = (
@@ -65,8 +64,13 @@ def test_init_remapper(time_units, calendar, decode_times, use_cftime, freq, bin
 
     remapper = Remapper(ds, freq=freq, binding=binding)
     assert isinstance(remapper.info, dict)
+    assert isinstance(remapper.weights, xr.DataArray)
     assert remapper.outgoing['encoded_times'].attrs == ds.time.attrs
-    assert isinstance(remapper.weights, sparse._coo.core.COO)
+    assert (_OUTGOING_KEY, _INCOMING_KEY) == remapper.weights.dims
+    assert remapper.weights.shape == (
+        remapper.outgoing['decoded_times'].shape[0],
+        remapper.incoming['decoded_times'].shape[0],
+    )
 
 
 @pytest.mark.parametrize('use_cftime', [True, False])
@@ -85,15 +89,12 @@ def test_invalid_out_freq():
 def test_remapper_weights_roundtrip(freq1, freq2):
     ds1 = create_dataset(start='2020-01-01', end='2021-01-01', freq=freq1)
     ds2 = create_dataset(start='2020-01-01', end='2021-01-01', freq=freq2)
-
     remapper1 = Remapper(ds1, freq=freq2)
     remapper2 = Remapper(ds2, freq=freq1)
-
-    M = np.matmul(remapper2.weights, remapper1.weights).todense()
+    M = np.matmul(remapper2.weights.data, remapper1.weights.data)
     assert (M.shape[0] == M.shape[1]) and np.allclose(M, np.eye(M.shape[0]))
 
 
-@pytest.mark.xfail(reason='Will be supported at a later time')
 @pytest.mark.parametrize(
     'start, end, in_freq, out_freq, nlats, nlons, group',
     [
@@ -103,17 +104,16 @@ def test_remapper_weights_roundtrip(freq1, freq2):
         ('2018-01-01', '2018-01-08', '24H', 'D', 2, 2, 'time.day'),
     ],
 )
-def test_remapper_average(start, end, in_freq, out_freq, nlats, nlons, group):
+def test_remapper_mean(start, end, in_freq, out_freq, nlats, nlons, group):
     ds = create_dataset(
         start=start, end=end, freq=in_freq, nlats=nlats, nlons=nlons, var_const=False
     )
     remapper = Remapper(ds, freq=out_freq)
-    results = remapper.average(ds.tmin).data
+    results = remapper.mean(ds.tmin).data
     expected = xarray_weighted_resample(ds, group).tmin.data
     np.testing.assert_almost_equal(expected, results, verbose=True)
 
 
-@pytest.mark.xfail(reason='Will be supported at a later time')
 @pytest.mark.parametrize(
     'start, end, in_freq, out_freq, nlats, nlons, group',
     [
@@ -123,24 +123,20 @@ def test_remapper_average(start, end, in_freq, out_freq, nlats, nlons, group):
         ('2018-01-01', '2018-01-08', '24H', 'D', 2, 2, 'time.day'),
     ],
 )
-def test_remapper_average_w_transposed_dims(start, end, in_freq, out_freq, nlats, nlons, group):
+def test_remapper_mean_w_transposed_dims(start, end, in_freq, out_freq, nlats, nlons, group):
     ds = create_dataset(
         start=start, end=end, freq=in_freq, nlats=nlats, nlons=nlons, var_const=False
     )
     ds = ds.transpose('lat', 'lon', 'd2', 'time', ...)
     remapper = Remapper(ds, freq=out_freq)
-    results = remapper.average(ds.tmin).data
-    expected = (
-        xarray_weighted_resample(ds, group).transpose('lat', 'lon', 'd2', 'time', ...).tmin.data
-    )
+    results = remapper.mean(ds.tmin).data
+    expected = xarray_weighted_resample(ds, group).tmin.data
     np.testing.assert_almost_equal(expected, results)
 
 
-@pytest.mark.xfail(reason='Will be supported at a later time')
 def test_remapper_input_time_axis_mismatch():
     ds = create_dataset(start='2018-01-01', end='2018-01-07', freq='D')
     remapper = Remapper(ds, freq='7D')
-
     ds2 = create_dataset(start='2018-01-01', end='2018-01-08', freq='D')
     with pytest.raises(ValueError):
-        _ = remapper.average(ds2.tmin)
+        _ = remapper.mean(ds2.tmin)
