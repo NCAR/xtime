@@ -1,13 +1,16 @@
 import re
 import warnings
 
+import dask.array
 import numpy as np
 import pandas as pd
-import sparse
 import xarray as xr
 from scipy.sparse import csr_matrix
 
 from .axis import BINDINGS, get_time_axis_info
+
+_OUTGOING_KEY = 'outgoing'
+_INCOMING_KEY = 'incoming'
 
 _FREQUENCIES = {
     'A': 'AS',
@@ -142,11 +145,17 @@ class Remapper:
             self.outgoing['encoded_time_bounds'].values,
             self.incoming['time_bounds_dim_axis_num'],
         )
+
+        _coords = {
+            _OUTGOING_KEY: self.outgoing['decoded_times'].data,
+            _INCOMING_KEY: self.incoming['decoded_times'].data,
+        }
         self.weights = construct_coverage_matrix(
             self.coverage['weights'],
             self.coverage['col_idx'],
             self.coverage['row_idx'],
             self.coverage['shape'],
+            coords=_coords,
         )
 
     def get_outgoing_time_axis_info(self):
@@ -199,13 +208,36 @@ class Remapper:
         x.update(attrs)
         return x
 
+    def mean(self, data):
+        indata = data.copy()
+        if isinstance(indata, xr.DataArray):
+            if isinstance(indata.data, dask.array.Array):
+                incoming_time_chunks = dict(zip(indata.dims, indata.chunks))[
+                    self.incoming['time_coord_name']
+                ][0]
+                return _mean(
+                    self.weights.chunk({_OUTGOING_KEY: incoming_time_chunks}),
+                    indata,
+                    self.incoming['time_coord_name'],
+                )
+            else:
+                return _mean(self.weights, indata, self.incoming['time_coord_name'])
 
-def construct_coverage_matrix(weights, col_idx, row_idx, shape):
+    average = mean
+
+
+def _mean(weights, indata, time_coord_name):
+    indata = indata.rename({time_coord_name: _INCOMING_KEY})
+    indata = indata.where(indata.notnull(), 0)
+    out = xr.dot(weights, indata).rename({_OUTGOING_KEY: time_coord_name})
+    return out.where(out != 0)
+
+
+def construct_coverage_matrix(weights, col_idx, row_idx, shape, coords={}):
     wgts = csr_matrix((weights, (row_idx, col_idx)), shape=shape).tolil()
     mask = np.asarray(wgts.sum(axis=1)).flatten() == 0
     wgts[mask, 0] = np.nan
-    wgts = wgts.tocsr()
-    weights = sparse.COO.from_scipy_sparse(wgts)
+    weights = xr.DataArray(wgts.toarray(), dims=[_OUTGOING_KEY, _INCOMING_KEY], coords=coords)
     return weights
 
 
