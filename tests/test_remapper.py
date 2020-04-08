@@ -114,6 +114,21 @@ def test_remapper_mean(start, end, in_freq, out_freq, nlats, nlons, group):
     np.testing.assert_almost_equal(expected, results, verbose=True)
 
 
+@pytest.mark.parametrize('decode_times', (False, True))
+def test_remapper_mean_time_encoding_decoding(decode_times):
+    ds = create_dataset(decode_times=decode_times, use_cftime=False)
+    remapper = Remapper(ds, freq='D')
+    results = remapper.mean(ds.tmin)
+    assert xr.core.common.is_np_datetime_like(results['time']) == decode_times
+
+
+def test_remapper_mean_not_implemented_error():
+    ds = create_dataset()
+    remapper = Remapper(ds, freq='M')
+    with pytest.raises(NotImplementedError):
+        remapper.mean(ds.tmin.data)
+
+
 @pytest.mark.parametrize(
     'start, end, in_freq, out_freq, nlats, nlons, group',
     [

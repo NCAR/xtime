@@ -209,20 +209,28 @@ class Remapper:
         return x
 
     def mean(self, data):
-        indata = data.copy()
-        _sanitize_input_data(indata, self.incoming['time_coord_name'], self.weights)
-        if isinstance(indata, xr.DataArray):
+        if isinstance(data, xr.DataArray):
+            indata = _sanitize_input_data(
+                data, self.incoming['time_coord_name'], self.weights, self.incoming
+            )
             if isinstance(indata.data, dask.array.Array):
                 incoming_time_chunks = dict(zip(indata.dims, indata.chunks))[
                     self.incoming['time_coord_name']
                 ][0]
-                return _mean(
+                outdata = _mean(
                     self.weights.chunk({_OUTGOING_KEY: incoming_time_chunks}),
                     indata,
                     self.incoming['time_coord_name'],
                 )
             else:
-                return _mean(self.weights, indata, self.incoming['time_coord_name'])
+                outdata = _mean(self.weights, indata, self.incoming['time_coord_name'])
+            outdata = _finalize_output_data(
+                outdata, self.incoming['time_coord_name'], self.outgoing, self.incoming
+            )
+            return outdata
+
+        else:
+            raise NotImplementedError
 
     average = mean
 
@@ -345,9 +353,20 @@ def _construct_outgoing_time_bounds(
     return out
 
 
-def _sanitize_input_data(data, time_coord_name, weights):
+def _sanitize_input_data(data, time_coord_name, weights, incoming_time_info):
     message = (
         f'The length ({data[time_coord_name].size}) of incoming time dimension does not match '
         f"with the provided remapper object's incoming time dimension ({weights[_INCOMING_KEY].size})"
     )
     assert data[time_coord_name].size == weights[_INCOMING_KEY].size, message
+    indata = data.copy()
+    indata[time_coord_name] = weights[_INCOMING_KEY].data
+    return indata
+
+
+def _finalize_output_data(data, time_coord_name, outgoing_time_info, incoming_time_info):
+    outdata = data.copy()
+    if not incoming_time_info['is_time_decoded']:
+        outdata[time_coord_name] = outgoing_time_info['encoded_times']
+    outdata[time_coord_name].attrs = outgoing_time_info['encoded_times'].attrs
+    return outdata
