@@ -208,34 +208,66 @@ class Remapper:
         x.update(attrs)
         return x
 
-    def mean(self, data):
+    def __call__(self, data):
+        """
+        Apply remapping weights to data.
+
+        Parameters
+        ----------
+        data : xarray.DataArray, xarray.Dataset
+            Data to map to new time frequency.
+
+        Returns
+        -------
+        outdata : xarray.DataArray, xarray.Dataset
+            Remapped data. Data type is the same as input data type.
+
+        Raises
+        ------
+        TypeError
+            if input data is not an xarray DataArray or xarray Dataset.
+        """
         if isinstance(data, xr.DataArray):
-            indata = _sanitize_input_data(
-                data, self.incoming['time_coord_name'], self.weights, self.incoming
-            )
-            if isinstance(indata.data, dask.array.Array):
-                incoming_time_chunks = dict(zip(indata.dims, indata.chunks))[
-                    self.incoming['time_coord_name']
-                ][0]
-                outdata = _mean(
-                    self.weights.chunk({_OUTGOING_KEY: incoming_time_chunks}),
-                    indata,
-                    self.incoming['time_coord_name'],
-                )
-            else:
-                outdata = _mean(self.weights, indata, self.incoming['time_coord_name'])
-            outdata = _finalize_output_data(
-                outdata, self.incoming['time_coord_name'], self.outgoing, self.incoming
-            )
-            return outdata
-
+            return self._remap_dataarray(data)
+        elif isinstance(data, xr.Dataset):
+            return self._remap_dataset(data)
         else:
-            raise NotImplementedError
+            raise TypeError('input data must be xarray DataArray or xarray Dataset!')
 
-    average = mean
+    def _remap_dataarray(self, dr_in):
+        """
+        See __call__().
+        """
+        indata = _sanitize_input_data(
+            dr_in, self.incoming['time_coord_name'], self.weights, self.incoming
+        )
+        if isinstance(indata.data, dask.array.Array):
+            incoming_time_chunks = dict(zip(indata.dims, indata.chunks))[
+                self.incoming['time_coord_name']
+            ][0]
+            outdata = _apply_weights(
+                self.weights.chunk({_OUTGOING_KEY: incoming_time_chunks}),
+                indata,
+                self.incoming['time_coord_name'],
+            )
+        else:
+            outdata = _apply_weights(self.weights, indata, self.incoming['time_coord_name'])
+        outdata = _finalize_output_data(
+            outdata, self.incoming['time_coord_name'], self.outgoing, self.incoming
+        )
+        return outdata
+
+    def _remap_dataset(self, ds_in):
+        """
+        See __call__().
+        """
+        raise NotImplementedError('Currently only works on xarray DataArrays')
 
 
-def _mean(weights, indata, time_coord_name):
+def _apply_weights(weights, indata, time_coord_name):
+    """
+    Apply remapping weights to data.
+    """
     indata = indata.rename({time_coord_name: _INCOMING_KEY})
     indata = indata.where(indata.notnull(), 0)
     out = xr.dot(weights, indata).rename({_OUTGOING_KEY: time_coord_name})

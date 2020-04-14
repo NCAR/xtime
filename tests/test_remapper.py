@@ -104,29 +104,36 @@ def test_remapper_weights_roundtrip(freq1, freq2):
         ('2018-01-01', '2018-01-08', '24H', 'D', 2, 2, 'time.day'),
     ],
 )
-def test_remapper_mean(start, end, in_freq, out_freq, nlats, nlons, group):
+def test_remapper(start, end, in_freq, out_freq, nlats, nlons, group):
     ds = create_dataset(
         start=start, end=end, freq=in_freq, nlats=nlats, nlons=nlons, var_const=False
     )
     remapper = Remapper(ds, freq=out_freq)
-    results = remapper.mean(ds.tmin).data
+    results = remapper(ds.tmin).data
     expected = xarray_weighted_resample(ds, group).tmin.data
     np.testing.assert_almost_equal(expected, results, verbose=True)
 
 
 @pytest.mark.parametrize('decode_times', (False, True))
-def test_remapper_mean_time_encoding_decoding(decode_times):
+def test_remapper_time_encoding_decoding(decode_times):
     ds = create_dataset(decode_times=decode_times, use_cftime=False)
     remapper = Remapper(ds, freq='D')
-    results = remapper.mean(ds.tmin)
+    results = remapper(ds.tmin)
     assert xr.core.common.is_np_datetime_like(results['time']) == decode_times
 
 
-def test_remapper_mean_not_implemented_error():
+def test_remapper_type_error():
+    ds = create_dataset()
+    remapper = Remapper(ds, freq='M')
+    with pytest.raises(TypeError):
+        remapper(ds.tmin.data)
+
+
+def test_remapper_not_implemented_error():
     ds = create_dataset()
     remapper = Remapper(ds, freq='M')
     with pytest.raises(NotImplementedError):
-        remapper.mean(ds.tmin.data)
+        remapper(ds)
 
 
 @pytest.mark.parametrize(
@@ -138,13 +145,13 @@ def test_remapper_mean_not_implemented_error():
         ('2018-01-01', '2018-01-08', '24H', 'D', 2, 2, 'time.day'),
     ],
 )
-def test_remapper_mean_w_transposed_dims(start, end, in_freq, out_freq, nlats, nlons, group):
+def test_remapper_w_transposed_dims(start, end, in_freq, out_freq, nlats, nlons, group):
     ds = create_dataset(
         start=start, end=end, freq=in_freq, nlats=nlats, nlons=nlons, var_const=False
     )
     ds = ds.transpose('lat', 'lon', 'd2', 'time', ...)
     remapper = Remapper(ds, freq=out_freq)
-    results = remapper.mean(ds.tmin).data
+    results = remapper(ds.tmin).data
     expected = xarray_weighted_resample(ds, group).tmin.data
     np.testing.assert_almost_equal(expected, results)
 
@@ -154,4 +161,4 @@ def test_remapper_input_time_axis_mismatch():
     remapper = Remapper(ds, freq='7D')
     ds2 = create_dataset(start='2018-01-01', end='2018-01-08', freq='D')
     with pytest.raises(AssertionError):
-        _ = remapper.mean(ds2.tmin)
+        _ = remapper(ds2.tmin)
