@@ -80,3 +80,30 @@ def test_remapper_apply_weights_dask(dataset, incoming, outgoing):
     assert remapped_data.shape == (24, 2, 2)
     assert set(remapped_data.dims) == set(dataset.x.dims)
     xr.testing.assert_equal(remapped_data, remapper(dataset.x))
+
+
+def test_remapper_apply_weights_invalid_input(dataset, incoming, outgoing):
+    remapper = Remapper(
+        incoming_axis=incoming,
+        outgoing_axis=outgoing,
+        axis_name='time',
+        boundary_variable='time_bounds',
+        incoming_axis_coord=incoming.time.data,
+        outgoing_axis_coord=outgoing.time.data,
+    )
+
+    with pytest.raises(NotImplementedError):
+        _ = remapper(dataset)
+
+    with pytest.raises(TypeError):
+        _ = remapper(dataset.x.data)
+
+
+def test_bounds_sanity_check(outgoing):
+    from xgriddedaxis.remapper import _bounds_sanity_check
+
+    bounds = np.array([0.0, 15.0, 10.0, 22.0, 26.0, 50.0, 45.0])
+    fractions = np.array([0.5, 0.4, 0.2, 1, 0.5, 0.3])
+    incoming = generate_time_and_bounds(bounds, fractions)
+    with pytest.raises(ValueError, match=r'all lower bounds must be smaller'):
+        _bounds_sanity_check(incoming.time_bounds)
