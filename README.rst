@@ -1,64 +1,64 @@
 
-xtimeutil: Time Boundary-aware Operations with xarray
-======================================================
+xgriddedaxis: Cell Boundary-aware Operations with xarray
+========================================================
 
 |pypi| |conda forge| |Build Status| |codecov| |docs| |GitHub Workflow Status|
 
 
-**xtimeutil** is a Python package for managing time boundary axis and different operations
-related to time with xarray. xtimeutil consumes and produces xarray_ data structures,
+**xgriddedaxis** is a Python package for managing/working with one-dimensional axes with their respective
+cell boundaries information. xgriddedaxis consumes and produces xarray_ data structures,
 which are coordinate and metadata-rich representations of multidimensional array data.
 
 
-xtimeutil was motivated by the fact that xarray_ is not aware of the time boundary variable when
-performing operations such as **resampling**. The main objective of xtimeutil is to provide a set of
-utilities that enables fluid translation between data at different temporal intervals while being aware
-of the time boundary variable.
+xgriddedaxis was motivated by the fact that xarray_ is not aware of cell boundary variables when
+performing operations such as **resampling**. The main objective of xgriddedaxis is to provide a set of
+utilities that enables fluid translation between data at different intervals while being aware
+of the cell boundary variables.
 
-The fundamental concept in xtimeutil is a `Remapper` object. `Remapper`'s role includes:
+The fundamental concept in xgriddedaxis is a `Remapper` object. `Remapper`'s role includes:
 
-- **Generating** an outgoing time boundary axis when given information of the incoming time boundary axis.
-- Using the incoming time boundary and outgoing time boundary axes to **generate remapping weights**.
-- **Remapping** data on the incoming time boundary axis to the outgoing time boundary axis using generated weights.
-
+- Creating a source axis, i.e. the axis that your original data is on,
+- Creating a destination axis, i.e. the axis that you want to convert your data to,
+- Creating a `Remapper` object by passing the source and destination axis you created previously,
+- Finally, converting your data from the source axis to the destination axis, using the `Remapper` object you created in previous step.
 
 For more information, read the full
-`xtimeutil documentation`_.
+`xgriddedaxis documentation`_.
 
 Installation
 ------------
 
-xtimeutil can be installed from PyPI with pip:
+xgriddedaxis can be installed from PyPI with pip:
 
 .. code-block:: bash
 
-    python -m pip install xtimeutil
+    python -m pip install xgriddedaxis
 
 
 It is also available from `conda-forge` for conda installations:
 
 .. code-block:: bash
 
-    conda install -c conda-forge xtimeutil
+    conda install -c conda-forge xgriddedaxis
 
 
 .. _xarray: http://xarray.pydata.org
-.. _xtimeutil documentation: https://xtimeutil.readthedocs.io
+.. _xgriddedaxis documentation: https://xgriddedaxis.readthedocs.io
 
-.. |GitHub Workflow Status| image:: https://img.shields.io/github/workflow/status/NCAR/xtimeutil/code-style?label=Code%20Style&style=for-the-badge
-    :target: https://github.com/NCAR/xtimeutil/actions
+.. |GitHub Workflow Status| image:: https://img.shields.io/github/workflow/status/NCAR/xgriddedaxis/code-style?label=Code%20Style&style=for-the-badge
+    :target: https://github.com/NCAR/xgriddedaxis/actions
 
-.. |Build Status| image:: https://img.shields.io/circleci/project/github/NCAR/xtimeutil/master.svg?style=for-the-badge&logo=circleci
-    :target: https://circleci.com/gh/NCAR/xtimeutil/tree/master
+.. |Build Status| image:: https://img.shields.io/circleci/project/github/NCAR/xgriddedaxis/master.svg?style=for-the-badge&logo=circleci
+    :target: https://circleci.com/gh/NCAR/xgriddedaxis/tree/master
 
-.. |codecov| image:: https://img.shields.io/codecov/c/github/NCAR/xtimeutil.svg?style=for-the-badge
-    :target: https://codecov.io/gh/NCAR/xtimeutil
+.. |codecov| image:: https://img.shields.io/codecov/c/github/NCAR/xgriddedaxis.svg?style=for-the-badge
+    :target: https://codecov.io/gh/NCAR/xgriddedaxis
 
-.. |docs| image:: https://img.shields.io/readthedocs/xtimeutil/latest.svg?style=for-the-badge
-    :target: https://xtimeutil.readthedocs.io/en/latest/?badge=latest
+.. |docs| image:: https://img.shields.io/readthedocs/xgriddedaxis/latest.svg?style=for-the-badge
+    :target: https://xgriddedaxis.readthedocs.io/en/latest/?badge=latest
 
-.. |pypi| image:: https://img.shields.io/pypi/v/xtimeutil.svg?style=for-the-badge
-    :target: https://pypi.org/project/xtimeutil
+.. |pypi| image:: https://img.shields.io/pypi/v/xgriddedaxis.svg?style=for-the-badge
+    :target: https://pypi.org/project/xgriddedaxis
 
-.. |conda forge| image:: https://img.shields.io/conda/vn/conda-forge/xtimeutil.svg?style=for-the-badge
-    :target: https://anaconda.org/conda-forge/xtimeutil
+.. |conda forge| image:: https://img.shields.io/conda/vn/conda-forge/xgriddedaxis.svg?style=for-the-badge
+    :target: https://anaconda.org/conda-forge/xgriddedaxis

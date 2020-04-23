@@ -5,8 +5,8 @@
 Feedback
 --------
 
-If you encounter any errors or problems with **xtimeutil**,
-please open an issue at the GitHub `main repository <http://github.com/NCAR/xtimeutil>`_.
+If you encounter any errors or problems with **xgriddedaxis**,
+please open an issue at the GitHub `main repository <http://github.com/NCAR/xgriddedaxis>`_.
 
 
 .. toctree::

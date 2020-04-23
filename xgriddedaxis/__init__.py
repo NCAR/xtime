@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-""" Top-level module for xtimeutil. """
+""" Top-level module for xgriddedaxis. """
 from pkg_resources import DistributionNotFound, get_distribution
 
 from .remapper import Remapper  # noqa: F401

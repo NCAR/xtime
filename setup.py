@@ -23,21 +23,21 @@ CLASSIFIERS = [
 ]
 
 setup(
-    name='xtimeutil',
-    description='A Python package for managing time axis and different operations related to time with xarray',
+    name='xgriddedaxis',
+    description='Cell Boundary-aware Operations with xarray',
     long_description=long_description,
     python_requires='>=3.6',
-    maintainer='Anderson Banihirwe',
-    maintainer_email='abanihi@ucar.edu',
+    maintainer='NCAR XDev Team',
+    maintainer_email='xdev@ucar.edu',
     classifiers=CLASSIFIERS,
-    url='https://github.com/NCAR/xtimeutil',
+    url='https://github.com/NCAR/xgriddedaxis',
     packages=find_packages(exclude=('tests',)),
     include_package_data=True,
     install_requires=install_requires,
     license='Apache 2.0',
     zip_safe=False,
     entry_points={},
-    keywords='xarray, cftime, time',
+    keywords='xarray, gridded, cf',
     use_scm_version={'version_scheme': 'post-release', 'local_scheme': 'dirty-tag'},
     setup_requires=['setuptools_scm', 'setuptools>=30.3.0'],
 )
