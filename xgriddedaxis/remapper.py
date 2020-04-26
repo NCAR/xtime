@@ -265,18 +265,21 @@ def construct_coverage_matrix(weights, col_idx, row_idx, shape, coords):
 
 
 def _bounds_sanity_check(bounds):
+    # Make sure bounds is 2D
+    assert bounds.ndim == 2, f'Bounds must be a 2D array. Found bounds dimensions = {bounds.ndim}'
+    # Make sure bounds shape is of form (n, 2)
+    assert (
+        bounds.shape[1] == 2
+    ), f'Bounds must be a 2D array with shape: (n, 2). Found bounds shape = {bounds.shape}'
     # Make sure lower_i <= upper_i
-    if bounds.shape[1] > 1:
-        if np.any(bounds[:, 0] > bounds[:, 1]):
-            raise ValueError(
-                'all lower bounds must be smaller than their counter-part upper bounds'
-            )
-
-        # Make sure lower_i < lower_{i+1}
-        if np.any(bounds[0, :-1] >= bounds[0, 1:]):
-            raise ValueError('lower bound values must be monotonically increasing.')
+    if np.any(bounds[:, 0] > bounds[:, 1]):
+        raise ValueError('all lower bounds must be smaller than their counter-part upper bounds')
+    # Make sure lower_i < lower_{i+1}
+    if np.any(bounds[0, :-1] >= bounds[0, 1:]):
+        raise ValueError('lower bound values must be monotonically increasing.')
 
 
 def _data_ticks_sanity_check(data_ticks):
+    assert data_ticks.ndim == 1, f'data ticks must be a one dimensional array.'
     message = 'data ticks must be monotically increasing.'
-    assert np.any(data_ticks[:-1] <= data_ticks[1:]), message
+    assert np.all(data_ticks[:-1] <= data_ticks[1:]), message

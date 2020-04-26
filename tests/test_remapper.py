@@ -91,7 +91,7 @@ def test_remapper_apply_weights_invalid_input(dataset, incoming, outgoing):
         _ = remapper(dataset.x.data)
 
 
-def test_bounds_sanity_check(outgoing):
+def test_bounds_sanity_check():
     from xgriddedaxis.remapper import _bounds_sanity_check
 
     bounds = np.array([0.0, 15.0, 10.0, 22.0, 26.0, 50.0, 45.0])
@@ -99,3 +99,26 @@ def test_bounds_sanity_check(outgoing):
     incoming = generate_time_and_bounds(bounds, fractions)
     with pytest.raises(ValueError, match=r'all lower bounds must be smaller'):
         _bounds_sanity_check(incoming.time_bounds)
+
+    bounds = np.arange(8).reshape(2, 2, 2)
+    with pytest.raises(AssertionError, match=r'Bounds must be a 2D array.'):
+        _bounds_sanity_check(bounds)
+
+    bounds = bounds.reshape(2, 4)
+    with pytest.raises(AssertionError, match=r'Bounds must be a 2D array with shape'):
+        _bounds_sanity_check(bounds)
+
+
+def test_data_ticks_sanity_check():
+    from xgriddedaxis.remapper import _data_ticks_sanity_check
+
+    x = np.arange(4)
+    _data_ticks_sanity_check(x)
+
+    x = np.arange(4).reshape(4, 1)
+    with pytest.raises(AssertionError, match=r'data ticks must be a one dimensional array'):
+        _data_ticks_sanity_check(x)
+
+    x = np.array([10.0, 13.0, 15.0, 14.0, 20.0])
+    with pytest.raises(AssertionError, match=r'data ticks must be monotically increasing'):
+        _data_ticks_sanity_check(x)
