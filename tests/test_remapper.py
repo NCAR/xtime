@@ -40,8 +40,6 @@ def test_remapper_init(incoming, outgoing):
         outgoing_axis=outgoing,
         axis_name='time',
         boundary_variable='time_bounds',
-        incoming_axis_coord=incoming.time.data,
-        outgoing_axis_coord=outgoing.time.data,
     )
     assert isinstance(remapper.weights.data, sparse._coo.core.COO)
     assert remapper.weights.shape == (
@@ -57,8 +55,6 @@ def test_remapper_apply_weights(dataset, incoming, outgoing):
         outgoing_axis=outgoing,
         axis_name='time',
         boundary_variable='time_bounds',
-        incoming_axis_coord=incoming.time.data,
-        outgoing_axis_coord=outgoing.time.data,
     )
     remapped_data = remapper(dataset.x)
     assert remapped_data.shape == (24, 2, 2)
@@ -71,8 +67,6 @@ def test_remapper_apply_weights_dask(dataset, incoming, outgoing):
         outgoing_axis=outgoing,
         axis_name='time',
         boundary_variable='time_bounds',
-        incoming_axis_coord=incoming.time.data,
-        outgoing_axis_coord=outgoing.time.data,
     )
     ds = dataset.chunk()
     remapped_data = remapper(ds.x)
@@ -88,8 +82,6 @@ def test_remapper_apply_weights_invalid_input(dataset, incoming, outgoing):
         outgoing_axis=outgoing,
         axis_name='time',
         boundary_variable='time_bounds',
-        incoming_axis_coord=incoming.time.data,
-        outgoing_axis_coord=outgoing.time.data,
     )
 
     with pytest.raises(NotImplementedError):

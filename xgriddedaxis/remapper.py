@@ -10,45 +10,59 @@ _INCOMING_KEY = 'incoming'
 
 class Remapper:
     """
-    An object that facilitates conversion between two axis.
+    An object that facilitates conversion of data between two one dimensional axes.
     """
 
     def __init__(
-        self,
-        incoming_axis,
-        outgoing_axis,
-        axis_name,
-        boundary_variable,
-        incoming_axis_coord,
-        outgoing_axis_coord,
+        self, incoming_axis, outgoing_axis, axis_name, boundary_variable,
     ):
         """
-        Create a new Remapper object that facilitates conversion between two axis.
+        Create a new Remapper object that facilitates conversion of data between two
+        one-dimensional axes.
 
         Parameters
         ----------
         incoming_axis : xarray.Dataset
+           Contains incoming/from axis information. This dataset should have
+           a 2D bounds variable (containing lower and upper bounds) and the
+           corresponding data ticks as a coordinate. The data tick defines where
+           in the bounds interval you are associating the data point.
         outgoing_axis : xarray.Dataset
+           Contains outgoing/to axis information. This dataset should have
+           a 2D bounds variable (containing lower and upper bounds) and the
+           corresponding data ticks as a coordinate. The data tick defines where
+           in the bounds interval you are associating the data point.
         axis_name : str
+           Name of the axis. For example, `time`, `lat`, etc..
         boundary_variable : str
-        incoming_axis_coord : Array
-        outgoing_axis_coord : Array
+           Name of the variable with bounds array.
+
+        Notes
+        -----
+        The lower bounds values must be monotonically increasing.
+        The upper bounds do NOT need to be monotonically increasing.
+        However, they should not be smaller than their counter-part lower bounds.
+
         """
         self.axis_name = axis_name
         self.boundary_variable = boundary_variable
         self.incoming_axis = incoming_axis
         self.outgoing_axis = outgoing_axis
         self.coverage_info = None
-        self.weights = self.generate_weights(incoming_axis_coord, outgoing_axis_coord)
+        self.weights = self.generate_weights()
 
-    def generate_weights(self, incoming_axis_coord, outgoing_axis_coord):
+    def generate_weights(self):
         """
         Generate remapping weights.
         """
         self.coverage_info = get_coverage_info(
-            self.incoming_axis[self.boundary_variable], self.outgoing_axis[self.boundary_variable]
+            self.incoming_axis[self.boundary_variable].data,
+            self.outgoing_axis[self.boundary_variable].data,
         )
-        coords = {_OUTGOING_KEY: outgoing_axis_coord, _INCOMING_KEY: incoming_axis_coord}
+        coords = {
+            _OUTGOING_KEY: self.outgoing_axis[self.axis_name].data,
+            _INCOMING_KEY: self.incoming_axis[self.axis_name].data,
+        }
         weights = construct_coverage_matrix(
             self.coverage_info['weights'],
             self.coverage_info['col_idx'],
@@ -61,14 +75,17 @@ class Remapper:
     def __call__(self, data):
         """
         Apply remapping weights to data.
+
         Parameters
         ----------
         data : xarray.DataArray, xarray.Dataset
-            Data to map to new time frequency.
+            Data to map to new axis.
+
         Returns
         -------
         outdata : xarray.DataArray, xarray.Dataset
             Remapped data. Data type is the same as input data type.
+
         Raises
         ------
         TypeError
@@ -89,9 +106,9 @@ class Remapper:
         weights.data = weights.data.todense()
         indata = _sanitize_input_data(dr_in, self.axis_name, self.weights)
         if isinstance(indata.data, dask.array.Array):
-            incoming_time_chunks = dict(zip(indata.dims, indata.chunks))[self.axis_name][0]
+            incoming_axis_chunks = dict(zip(indata.dims, indata.chunks))[self.axis_name][0]
 
-            weights = weights.chunk({_OUTGOING_KEY: incoming_time_chunks})
+            weights = weights.chunk({_OUTGOING_KEY: incoming_axis_chunks})
             return _apply_weights(weights, indata, self.axis_name,)
         else:
             return _apply_weights(weights, indata, self.axis_name)
@@ -102,8 +119,8 @@ class Remapper:
 
 def _sanitize_input_data(data, axis_name, weights):
     message = (
-        f'The length ({data[axis_name].size}) of incoming time dimension does not match '
-        f"with the provided remapper object's incoming time dimension ({weights[_INCOMING_KEY].size})"
+        f'The length ({data[axis_name].size}) of incoming {axis_name} dimension does not match '
+        f"with the provided remapper object's incoming {axis_name} dimension ({weights[_INCOMING_KEY].size})"
     )
     assert data[axis_name].size == weights[_INCOMING_KEY].size, message
     indata = data.copy()
@@ -113,7 +130,23 @@ def _sanitize_input_data(data, axis_name, weights):
 
 def _apply_weights(weights, indata, axis_name):
     """
-    Apply remapping weights to data. We apply weights normalization when we have missing values in the input data.
+    Apply remapping weights to data. We apply weights normalization
+    when we have missing values in the input data.
+
+    Parameters
+    ----------
+    weights : xarray.DataArray
+       Remapping weights
+    indata : xarray.DataArray
+       Input data to remap to a new axis.
+    axis_name : str
+        Name of the axis. For example, `time`, `lat`, etc..
+
+    Returns
+    -------
+    outdata : xarray.DataArray
+       Remapped data
+
     """
     indata = indata.rename({axis_name: _INCOMING_KEY})
     nan_mask = indata.isnull()
@@ -138,13 +171,28 @@ def _bounds_sanity_check(bounds):
             raise ValueError('lower bound values must be monotonically increasing.')
 
 
-def get_coverage_info(incoming_time_bounds, outgoing_time_bounds):
-    _bounds_sanity_check(incoming_time_bounds)
-    _bounds_sanity_check(outgoing_time_bounds)
-    incoming_lower_bounds = incoming_time_bounds[:, 0].data
-    incoming_upper_bounds = incoming_time_bounds[:, 1].data
-    outgoing_lower_bounds = outgoing_time_bounds[:, 0].data
-    outgoing_upper_bounds = outgoing_time_bounds[:, 1].data
+def get_coverage_info(incoming_bounds, outgoing_bounds):
+    """
+    Compute the overlap/coverage between the incoming and outgoing bounds
+
+    Parameters
+    ----------
+    incoming_bounds : numpy.Array
+        incoming bounds
+    outgoing_bounds : numpy.Array
+        outgoing bounds
+    Returns
+    -------
+    dict
+        Dictionary containing information used to generate remapping weights matrix
+    """
+    _bounds_sanity_check(incoming_bounds)
+    _bounds_sanity_check(outgoing_bounds)
+
+    incoming_lower_bounds = incoming_bounds[:, 0]
+    incoming_upper_bounds = incoming_bounds[:, 1]
+    outgoing_lower_bounds = outgoing_bounds[:, 0]
+    outgoing_upper_bounds = outgoing_bounds[:, 1]
 
     n = incoming_lower_bounds.size
     m = outgoing_lower_bounds.size
@@ -193,7 +241,28 @@ def get_coverage_info(incoming_time_bounds, outgoing_time_bounds):
     return coverage
 
 
-def construct_coverage_matrix(weights, col_idx, row_idx, shape, coords={}):
+def construct_coverage_matrix(weights, col_idx, row_idx, shape, coords):
+    """
+    Generate remapping weights sparse matrix.
+
+    Parameters
+    ----------
+    weights : array_like
+        Contain overlap/coverage between the incoming and outgoing bounds
+    col_idx : array_like
+        column indices
+    row_idx : array_like
+        row indices
+    shape : tuple
+        Shape of the matrix
+    coords : dict
+        Dictionary-like container of coordinate arrays.
+
+    Returns
+    -------
+    xarray.DataArray
+        Contains the remapping weights (stored as a sparse matrix in COO format)
+    """
     wgts = csr_matrix((weights, (row_idx, col_idx)), shape=shape).tolil()
     mask = np.asarray(wgts.sum(axis=1)).flatten() == 0
     wgts[mask, 0] = np.nan
