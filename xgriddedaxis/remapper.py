@@ -59,9 +59,15 @@ class Remapper:
             self.incoming_axis[self.boundary_variable].data,
             self.outgoing_axis[self.boundary_variable].data,
         )
+
+        incoming_data_ticks = self.incoming_axis[self.axis_name].data
+        outgoing_data_ticks = self.outgoing_axis[self.axis_name].data
+
+        _data_ticks_sanity_check(incoming_data_ticks)
+        _data_ticks_sanity_check(outgoing_data_ticks)
         coords = {
-            _OUTGOING_KEY: self.outgoing_axis[self.axis_name].data,
-            _INCOMING_KEY: self.incoming_axis[self.axis_name].data,
+            _INCOMING_KEY: incoming_data_ticks,
+            _OUTGOING_KEY: outgoing_data_ticks,
         }
         weights = construct_coverage_matrix(
             self.coverage_info['weights'],
@@ -79,12 +85,12 @@ class Remapper:
         Parameters
         ----------
         data : xarray.DataArray, xarray.Dataset
-            Data to map to new axis.
-
+            Data to map from the incoming axis to the outgoing axis.
         Returns
         -------
         outdata : xarray.DataArray, xarray.Dataset
             Remapped data. Data type is the same as input data type.
+            All the dimensions are the same as the input data except the incoming axis.
 
         Raises
         ------
@@ -158,28 +164,15 @@ def _apply_weights(weights, indata, axis_name):
     return outdata.rename({_OUTGOING_KEY: axis_name})
 
 
-def _bounds_sanity_check(bounds):
-    # Make sure lower_i <= upper_i
-    if bounds.shape[1] > 1:
-        if np.any(bounds[:, 0] > bounds[:, 1]):
-            raise ValueError(
-                'all lower bounds must be smaller than their counter-part upper bounds'
-            )
-
-        # Make sure lower_i < lower_{i+1}
-        if np.any(bounds[0, :-1] >= bounds[0, 1:]):
-            raise ValueError('lower bound values must be monotonically increasing.')
-
-
 def get_coverage_info(incoming_bounds, outgoing_bounds):
     """
     Compute the overlap/coverage between the incoming and outgoing bounds
 
     Parameters
     ----------
-    incoming_bounds : numpy.Array
+    incoming_bounds : numpy.array
         incoming bounds
-    outgoing_bounds : numpy.Array
+    outgoing_bounds : numpy.array
         outgoing bounds
     Returns
     -------
@@ -269,3 +262,21 @@ def construct_coverage_matrix(weights, col_idx, row_idx, shape, coords):
     wgts = sparse.COO.from_scipy_sparse(wgts)
     weights = xr.DataArray(data=wgts, dims=['outgoing', 'incoming'], coords=coords)
     return weights
+
+
+def _bounds_sanity_check(bounds):
+    # Make sure lower_i <= upper_i
+    if bounds.shape[1] > 1:
+        if np.any(bounds[:, 0] > bounds[:, 1]):
+            raise ValueError(
+                'all lower bounds must be smaller than their counter-part upper bounds'
+            )
+
+        # Make sure lower_i < lower_{i+1}
+        if np.any(bounds[0, :-1] >= bounds[0, 1:]):
+            raise ValueError('lower bound values must be monotonically increasing.')
+
+
+def _data_ticks_sanity_check(data_ticks):
+    message = 'data ticks must be monotically increasing.'
+    assert np.any(data_ticks[:-1] <= data_ticks[1:]), message
