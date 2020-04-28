@@ -14,7 +14,7 @@ from .utils import create_dataset, generate_time_and_bounds
 def from_axis():
     n = 13
     bounds = np.round(np.logspace(2.0, 3.5, num=n), decimals=0)
-    fractions = np.round(np.random.random(n - 1), decimals=1)
+    fractions = np.round(np.random.random(n - 1), decimals=3)
     from_axis = generate_time_and_bounds(bounds, fractions)
     return from_axis
 
@@ -23,7 +23,7 @@ def from_axis():
 def to_axis():
     n = 25
     bounds = np.round(np.logspace(2.0, 3.6, num=n), decimals=0)
-    fractions = np.round(np.random.random(n - 1), decimals=1)
+    fractions = np.round(np.random.random(n - 1), decimals=3)
     to_axis = generate_time_and_bounds(bounds, fractions)
     return to_axis
 
