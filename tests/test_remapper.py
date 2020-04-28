@@ -5,68 +5,59 @@ import sparse
 import xarray as xr
 
 from xgriddedaxis import Remapper
-from xgriddedaxis.remapper import _INCOMING_KEY, _OUTGOING_KEY
+from xgriddedaxis.remapper import _FROM_KEY, _TO_KEY
 
 from .utils import create_dataset, generate_time_and_bounds
 
 
 @pytest.fixture(scope='module')
-def incoming():
+def from_axis():
     n = 13
     bounds = np.round(np.logspace(2.0, 3.5, num=n), decimals=0)
     fractions = np.round(np.random.random(n - 1), decimals=1)
-    incoming = generate_time_and_bounds(bounds, fractions)
-    return incoming
+    from_axis = generate_time_and_bounds(bounds, fractions)
+    return from_axis
 
 
 @pytest.fixture(scope='module')
-def outgoing():
+def to_axis():
     n = 25
     bounds = np.round(np.logspace(2.0, 3.6, num=n), decimals=0)
     fractions = np.round(np.random.random(n - 1), decimals=1)
-    outgoing = generate_time_and_bounds(bounds, fractions)
-    return outgoing
+    to_axis = generate_time_and_bounds(bounds, fractions)
+    return to_axis
 
 
 @pytest.fixture(scope='module')
-def dataset(incoming, outgoing):
-    ds = create_dataset(incoming['time'], incoming['time_bounds'])
+def dataset(from_axis, to_axis):
+    ds = create_dataset(from_axis['time'], from_axis['time_bounds'])
     return ds
 
 
-def test_remapper_init(incoming, outgoing):
+def test_remapper_init(from_axis, to_axis):
     remapper = Remapper(
-        incoming_axis=incoming,
-        outgoing_axis=outgoing,
-        axis_name='time',
-        boundary_variable='time_bounds',
+        from_axis=from_axis, to_axis=to_axis, axis_name='time', boundary_variable='time_bounds',
     )
     assert isinstance(remapper.weights.data, sparse._coo.core.COO)
     assert remapper.weights.shape == (
-        remapper.outgoing_axis[remapper.axis_name].size,
-        remapper.incoming_axis[remapper.axis_name].size,
+        remapper.to_axis[remapper.axis_name].size,
+        remapper.from_axis[remapper.axis_name].size,
     )
-    assert set(remapper.weights.dims) == set([_OUTGOING_KEY, _INCOMING_KEY])
+    assert set(remapper.weights.dims) == set([_TO_KEY, _FROM_KEY])
 
 
-def test_remapper_apply_weights(dataset, incoming, outgoing):
+def test_remapper_apply_weights(dataset, from_axis, to_axis):
     remapper = Remapper(
-        incoming_axis=incoming,
-        outgoing_axis=outgoing,
-        axis_name='time',
-        boundary_variable='time_bounds',
+        from_axis=from_axis, to_axis=to_axis, axis_name='time', boundary_variable='time_bounds',
     )
     remapped_data = remapper(dataset.x)
     assert remapped_data.shape == (24, 2, 2)
     assert set(remapped_data.dims) == set(dataset.x.dims)
 
 
-def test_remapper_apply_weights_dask(dataset, incoming, outgoing):
+def test_remapper_apply_weights_dask(dataset, from_axis, to_axis):
     remapper = Remapper(
-        incoming_axis=incoming,
-        outgoing_axis=outgoing,
-        axis_name='time',
-        boundary_variable='time_bounds',
+        from_axis=from_axis, to_axis=to_axis, axis_name='time', boundary_variable='time_bounds',
     )
     ds = dataset.chunk()
     remapped_data = remapper(ds.x)
@@ -76,12 +67,9 @@ def test_remapper_apply_weights_dask(dataset, incoming, outgoing):
     xr.testing.assert_equal(remapped_data, remapper(dataset.x))
 
 
-def test_remapper_apply_weights_invalid_input(dataset, incoming, outgoing):
+def test_remapper_apply_weights_invalid_input(dataset, from_axis, to_axis):
     remapper = Remapper(
-        incoming_axis=incoming,
-        outgoing_axis=outgoing,
-        axis_name='time',
-        boundary_variable='time_bounds',
+        from_axis=from_axis, to_axis=to_axis, axis_name='time', boundary_variable='time_bounds',
     )
 
     with pytest.raises(NotImplementedError):
@@ -96,9 +84,9 @@ def test_bounds_sanity_check():
 
     bounds = np.array([0.0, 15.0, 10.0, 22.0, 26.0, 50.0, 45.0])
     fractions = np.array([0.5, 0.4, 0.2, 1, 0.5, 0.3])
-    incoming = generate_time_and_bounds(bounds, fractions)
+    from_axis = generate_time_and_bounds(bounds, fractions)
     with pytest.raises(ValueError, match=r'all lower bounds must be smaller'):
-        _bounds_sanity_check(incoming.time_bounds)
+        _bounds_sanity_check(from_axis.time_bounds)
 
     bounds = np.arange(8).reshape(2, 2, 2)
     with pytest.raises(AssertionError, match=r'Bounds must be a 2D array.'):

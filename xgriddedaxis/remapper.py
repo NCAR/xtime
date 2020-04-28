@@ -4,8 +4,8 @@ import sparse
 import xarray as xr
 from scipy.sparse import csr_matrix
 
-_OUTGOING_KEY = 'outgoing'
-_INCOMING_KEY = 'incoming'
+_TO_KEY = 'to'
+_FROM_KEY = 'from'
 
 
 class Remapper:
@@ -14,7 +14,7 @@ class Remapper:
     """
 
     def __init__(
-        self, incoming_axis, outgoing_axis, axis_name, boundary_variable,
+        self, from_axis, to_axis, axis_name, boundary_variable,
     ):
         """
         Create a new Remapper object that facilitates conversion of data between two
@@ -22,12 +22,12 @@ class Remapper:
 
         Parameters
         ----------
-        incoming_axis : xarray.Dataset
+        from_axis : xarray.Dataset
            Contains incoming/from axis information. This dataset should have
            a 2D bounds variable (containing lower and upper bounds) and the
            corresponding data ticks as a coordinate. The data tick defines where
            in the bounds interval you are associating the data point.
-        outgoing_axis : xarray.Dataset
+        to_axis : xarray.Dataset
            Contains outgoing/to axis information. This dataset should have
            a 2D bounds variable (containing lower and upper bounds) and the
            corresponding data ticks as a coordinate. The data tick defines where
@@ -46,8 +46,8 @@ class Remapper:
         """
         self.axis_name = axis_name
         self.boundary_variable = boundary_variable
-        self.incoming_axis = incoming_axis
-        self.outgoing_axis = outgoing_axis
+        self.from_axis = from_axis
+        self.to_axis = to_axis
         self.coverage_info = None
         self.weights = self.generate_weights()
 
@@ -56,18 +56,17 @@ class Remapper:
         Generate remapping weights.
         """
         self.coverage_info = get_coverage_info(
-            self.incoming_axis[self.boundary_variable].data,
-            self.outgoing_axis[self.boundary_variable].data,
+            self.from_axis[self.boundary_variable].data, self.to_axis[self.boundary_variable].data,
         )
 
-        incoming_data_ticks = self.incoming_axis[self.axis_name].data
-        outgoing_data_ticks = self.outgoing_axis[self.axis_name].data
+        from_data_ticks = self.from_axis[self.axis_name].data
+        to_data_ticks = self.to_axis[self.axis_name].data
 
-        _data_ticks_sanity_check(incoming_data_ticks)
-        _data_ticks_sanity_check(outgoing_data_ticks)
+        _data_ticks_sanity_check(from_data_ticks)
+        _data_ticks_sanity_check(to_data_ticks)
         coords = {
-            _INCOMING_KEY: incoming_data_ticks,
-            _OUTGOING_KEY: outgoing_data_ticks,
+            _FROM_KEY: from_data_ticks,
+            _TO_KEY: to_data_ticks,
         }
         weights = construct_coverage_matrix(
             self.coverage_info['weights'],
@@ -112,9 +111,9 @@ class Remapper:
         weights.data = weights.data.todense()
         indata = _sanitize_input_data(dr_in, self.axis_name, self.weights)
         if isinstance(indata.data, dask.array.Array):
-            incoming_axis_chunks = dict(zip(indata.dims, indata.chunks))[self.axis_name][0]
+            from_axis_chunks = dict(zip(indata.dims, indata.chunks))[self.axis_name][0]
 
-            weights = weights.chunk({_OUTGOING_KEY: incoming_axis_chunks})
+            weights = weights.chunk({_TO_KEY: from_axis_chunks})
             return _apply_weights(weights, indata, self.axis_name,)
         else:
             return _apply_weights(weights, indata, self.axis_name)
@@ -126,11 +125,11 @@ class Remapper:
 def _sanitize_input_data(data, axis_name, weights):
     message = (
         f'The length ({data[axis_name].size}) of incoming {axis_name} dimension does not match '
-        f"with the provided remapper object's incoming {axis_name} dimension ({weights[_INCOMING_KEY].size})"
+        f"with the provided remapper object's incoming {axis_name} dimension ({weights[_FROM_KEY].size})"
     )
-    assert data[axis_name].size == weights[_INCOMING_KEY].size, message
+    assert data[axis_name].size == weights[_FROM_KEY].size, message
     indata = data.copy()
-    indata[axis_name] = weights[_INCOMING_KEY].data
+    indata[axis_name] = weights[_FROM_KEY].data
     return indata
 
 
@@ -154,52 +153,52 @@ def _apply_weights(weights, indata, axis_name):
        Remapped data
 
     """
-    indata = indata.rename({axis_name: _INCOMING_KEY})
+    indata = indata.rename({axis_name: _FROM_KEY})
     nan_mask = indata.isnull()
     non_nan_mask = xr.ones_like(indata, dtype=np.int8)
     non_nan_mask = non_nan_mask.where(~nan_mask, 0)
     indata = indata.where(~nan_mask, 0)
     inverse_sum_effective_weights = np.reciprocal(xr.dot(weights, non_nan_mask))
     outdata = xr.dot(weights, indata) * inverse_sum_effective_weights
-    return outdata.rename({_OUTGOING_KEY: axis_name})
+    return outdata.rename({_TO_KEY: axis_name})
 
 
-def get_coverage_info(incoming_bounds, outgoing_bounds):
+def get_coverage_info(from_bounds, to_bounds):
     """
     Compute the overlap/coverage between the incoming and outgoing bounds
 
     Parameters
     ----------
-    incoming_bounds : numpy.array
+    from_bounds : numpy.array
         incoming bounds
-    outgoing_bounds : numpy.array
+    to_bounds : numpy.array
         outgoing bounds
     Returns
     -------
     dict
         Dictionary containing information used to generate remapping weights matrix
     """
-    _bounds_sanity_check(incoming_bounds)
-    _bounds_sanity_check(outgoing_bounds)
+    _bounds_sanity_check(from_bounds)
+    _bounds_sanity_check(to_bounds)
 
-    incoming_lower_bounds = incoming_bounds[:, 0]
-    incoming_upper_bounds = incoming_bounds[:, 1]
-    outgoing_lower_bounds = outgoing_bounds[:, 0]
-    outgoing_upper_bounds = outgoing_bounds[:, 1]
+    from_lower_bounds = from_bounds[:, 0]
+    from_upper_bounds = from_bounds[:, 1]
+    to_lower_bounds = to_bounds[:, 0]
+    to_upper_bounds = to_bounds[:, 1]
 
-    n = incoming_lower_bounds.size
-    m = outgoing_lower_bounds.size
+    n = from_lower_bounds.size
+    m = to_lower_bounds.size
 
     row_idx = []
     col_idx = []
     weights = []
     for r in range(m):
-        toLB = outgoing_lower_bounds[r]
-        toUB = outgoing_upper_bounds[r]
+        toLB = to_lower_bounds[r]
+        toUB = to_upper_bounds[r]
         toLength = toUB - toLB
         for c in range(n):
-            fromLB = incoming_lower_bounds[c]
-            fromUB = incoming_upper_bounds[c]
+            fromLB = from_lower_bounds[c]
+            fromUB = from_upper_bounds[c]
             fromLength = fromUB - fromLB
 
             if (fromUB <= toLB) or (fromLB >= toUB):  # No coverage
@@ -260,7 +259,7 @@ def construct_coverage_matrix(weights, col_idx, row_idx, shape, coords):
     mask = np.asarray(wgts.sum(axis=1)).flatten() == 0
     wgts[mask, 0] = np.nan
     wgts = sparse.COO.from_scipy_sparse(wgts)
-    weights = xr.DataArray(data=wgts, dims=['outgoing', 'incoming'], coords=coords)
+    weights = xr.DataArray(data=wgts, dims=['to', 'from'], coords=coords)
     return weights
 
 
