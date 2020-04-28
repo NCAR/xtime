@@ -281,4 +281,4 @@ def _bounds_sanity_check(bounds):
 def _data_ticks_sanity_check(data_ticks):
     assert data_ticks.ndim == 1, f'data ticks must be a one dimensional array.'
     message = 'data ticks must be monotically increasing.'
-    assert np.all(data_ticks[:-1] <= data_ticks[1:]), message
+    assert np.all(data_ticks[:-1] < data_ticks[1:]), message

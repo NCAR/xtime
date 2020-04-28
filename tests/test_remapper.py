@@ -110,3 +110,7 @@ def test_data_ticks_sanity_check():
     x = np.array([10.0, 13.0, 15.0, 14.0, 20.0])
     with pytest.raises(AssertionError, match=r'data ticks must be monotically increasing'):
         _data_ticks_sanity_check(x)
+
+    x = np.array([1.0, 1.0])
+    with pytest.raises(AssertionError, match=r'data ticks must be monotically increasing'):
+        _data_ticks_sanity_check(x)
