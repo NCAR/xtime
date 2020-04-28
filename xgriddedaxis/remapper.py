@@ -23,12 +23,12 @@ class Remapper:
         Parameters
         ----------
         from_axis : xarray.Dataset
-           Contains incoming/from axis information. This dataset should have
+           Contains `from` axis information. This dataset should have
            a 2D bounds variable (containing lower and upper bounds) and the
            corresponding data ticks as a coordinate. The data tick defines where
            in the bounds interval you are associating the data point.
         to_axis : xarray.Dataset
-           Contains outgoing/to axis information. This dataset should have
+           Contains `to` axis information. This dataset should have
            a 2D bounds variable (containing lower and upper bounds) and the
            corresponding data ticks as a coordinate. The data tick defines where
            in the bounds interval you are associating the data point.
@@ -84,12 +84,12 @@ class Remapper:
         Parameters
         ----------
         data : xarray.DataArray, xarray.Dataset
-            Data to map from the incoming axis to the outgoing axis.
+            Data to map from the "from" axis to the "to" axis.
         Returns
         -------
         outdata : xarray.DataArray, xarray.Dataset
             Remapped data. Data type is the same as input data type.
-            All the dimensions are the same as the input data except the incoming axis.
+            All the dimensions are the same as the input data except the "from" axis.
 
         Raises
         ------
@@ -124,8 +124,8 @@ class Remapper:
 
 def _sanitize_input_data(data, axis_name, weights):
     message = (
-        f'The length ({data[axis_name].size}) of incoming {axis_name} dimension does not match '
-        f"with the provided remapper object's incoming {axis_name} dimension ({weights[_FROM_KEY].size})"
+        f'The length ({data[axis_name].size}) of `from_axis` {axis_name} dimension does not match '
+        f"with the provided remapper object's `from_axis` {axis_name} dimension ({weights[_FROM_KEY].size})"
     )
     assert data[axis_name].size == weights[_FROM_KEY].size, message
     indata = data.copy()
@@ -165,14 +165,14 @@ def _apply_weights(weights, indata, axis_name):
 
 def get_coverage_info(from_bounds, to_bounds):
     """
-    Compute the overlap/coverage between the incoming and outgoing bounds
+    Compute the overlap/coverage between the "from" and "to" bounds
 
     Parameters
     ----------
     from_bounds : numpy.array
-        incoming bounds
+        "from" bounds
     to_bounds : numpy.array
-        outgoing bounds
+        "to" bounds
     Returns
     -------
     dict
@@ -240,7 +240,7 @@ def construct_coverage_matrix(weights, col_idx, row_idx, shape, coords):
     Parameters
     ----------
     weights : array_like
-        Contain overlap/coverage between the incoming and outgoing bounds
+        Contain overlap/coverage between the "from" and "to" bounds
     col_idx : array_like
         column indices
     row_idx : array_like
